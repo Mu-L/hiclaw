@@ -4,6 +4,42 @@ Record image-affecting changes to `manager/`, `worker/`, `openclaw-base/` here b
 
 ---
 
+**What's New**
+
+- Added CoPaw Worker container support — new `copaw/Dockerfile`, container lifecycle management (`container_create_copaw_worker`), random host port assignment with auto-retry on conflict, and on-demand web console toggle (`enable-worker-console.sh`, saves ~500MB RAM when disabled).
+- Added CoPaw Worker runtime package (`copaw-worker` CLI) that bridges openclaw.json → CoPaw config, implements MatrixChannel for Matrix communication, syncs config/skills from MinIO, and supports bidirectional file sync (remote→local + local→MinIO push loop).
+- Added worker runtime selection prompt to install scripts — users choose between OpenClaw (~500MB) and CoPaw (~100MB) during installation; default runtime stored in `HICLAW_DEFAULT_WORKER_RUNTIME` env var and used by `create-worker.sh`.
+- Extracted worker model switch into standalone `worker-model-switch` skill.
+- Added AI identity section to SOUL.md and User-Agent header (HiClaw/\<version\>) to AI route.
+
+**Bug Fixes**
+
+- Fixed CoPaw `bridge.py` path constants causing 401 AuthenticationError on LLM calls, and Podman container detection (`/run/.containerenv`) causing Matrix connection timeout.
+- Fixed CoPaw MatrixChannel not mentioning sender in replies (manager ignored worker replies).
+- Unified worker file-sync notification and task/project notification paths to work with both OpenClaw and CoPaw runtimes.
+- Fixed model `input` field to be dynamic based on model vision capability instead of hardcoded.
+- Fixed container timezone configuration from TZ env var.
+
+---
+
+**新增功能**
+
+- CoPaw Worker 容器化支持 — 新增 `copaw/Dockerfile`、容器生命周期管理（`container_create_copaw_worker`）、随机 host port 分配与端口冲突自动重试、按需开关 Web 控制台（`enable-worker-console.sh`，关闭时节省约 500MB 内存）。
+- CoPaw Worker 运行时包（`copaw-worker` CLI）— 桥接 openclaw.json 到 CoPaw 配置、实现 MatrixChannel 通信、从 MinIO 同步配置和技能、支持双向文件同步（远程→本地 + 本地→MinIO 推送）。
+- 安装脚本新增 Worker 运行时选择提示 — 用户在安装时选择 OpenClaw（约 500MB）或 CoPaw（约 100MB），默认运行时存入 `HICLAW_DEFAULT_WORKER_RUNTIME` 环境变量，`create-worker.sh` 自动使用。
+- Worker 模型切换拆分为独立 `worker-model-switch` skill。
+- SOUL.md 新增 AI 身份声明，AI 路由新增 User-Agent 头（HiClaw/\<version\>）。
+
+**Bug 修复**
+
+- 修复 CoPaw `bridge.py` 路径常量导致 LLM 调用 401 认证错误，以及 Podman 容器环境检测（`/run/.containerenv`）导致 Matrix 连接超时。
+- 修复 CoPaw MatrixChannel 回复未携带发送者信息（Manager 忽略 Worker 回复）。
+- 统一 Worker 文件同步通知和任务/项目通知路径，兼容 OpenClaw 和 CoPaw 两种运行时。
+- 修复模型 `input` 字段根据视觉能力动态设置，不再硬编码。
+- 修复容器时区配置（通过 TZ 环境变量）。
+
+---
+
 - feat(manager): add AI identity section to Manager and Worker SOUL.md templates, ensuring agents understand they are AI not human and can work continuously ([ecca010](https://github.com/higress-group/hiclaw/commit/ecca010))
 - fix: set container timezone from TZ env var in both Manager and Worker (install tzdata in base image, configure /etc/localtime and /etc/timezone at startup)
 - feat(manager): add User-Agent header (HiClaw/<version>) to default AI route via headerControl, and send it in LLM connectivity tests ([3242d06](https://github.com/higress-group/hiclaw/commit/3242d0630d196c35b5df6fd6fbd7ac6e6b72c08a))
