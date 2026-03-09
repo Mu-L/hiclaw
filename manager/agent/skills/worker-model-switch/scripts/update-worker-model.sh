@@ -22,7 +22,7 @@ _log() {
     echo "[worker-model-switch $(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 
-# Resolve context window and max tokens for a given model name
+# Resolve context window, max tokens, and input modalities for a given model name
 _resolve_model_params() {
     local model="$1"
     case "${model}" in
@@ -44,6 +44,13 @@ _resolve_model_params() {
             CTX=200000; MAX=128000 ;;
         *)
             CTX=200000; MAX=128000 ;;
+    esac
+    # Resolve input modalities: only vision-capable models get "image"
+    case "${model}" in
+        gpt-5.4|gpt-5.3-codex|gpt-5-mini|gpt-5-nano|claude-opus-4-6|claude-sonnet-4-6|claude-haiku-4-5|qwen3.5-plus|kimi-k2.5)
+            INPUT='["text", "image"]' ;;
+        *)
+            INPUT='["text"]' ;;
     esac
 }
 
@@ -72,9 +79,9 @@ update_worker_model() {
         return 1
     fi
 
-    local CTX MAX
+    local CTX MAX INPUT
     _resolve_model_params "${new_model}"
-    _log "Updating worker $worker model to ${new_model} (ctx=${CTX}, max=${MAX})"
+    _log "Updating worker $worker model to ${new_model} (ctx=${CTX}, max=${MAX}, input=${INPUT})"
 
     # ── Pre-flight: verify the model is reachable via AI Gateway ─────────────
     local gateway_url="http://${HICLAW_AI_GATEWAY_DOMAIN:-aigw-local.hiclaw.io}:8080/v1/chat/completions"
@@ -115,15 +122,17 @@ update_worker_model() {
         return 1
     fi
 
-    # Patch model id, name, contextWindow, maxTokens (preserves other fields like input, reasoning)
+    # Patch model id, name, contextWindow, maxTokens, input
     jq --arg model "${new_model}" \
        --argjson ctx "${CTX}" \
        --argjson max "${MAX}" \
+       --argjson input "${INPUT}" \
        '(.models.providers["hiclaw-gateway"].models[0]) |= (. + {
            "id": $model,
            "name": $model,
            "contextWindow": $ctx,
-           "maxTokens": $max
+           "maxTokens": $max,
+           "input": $input
          })
         | .agents.defaults.model.primary = ("hiclaw-gateway/" + $model)' \
        "${tmp_in}" > "${tmp_out}"
@@ -171,7 +180,7 @@ update_worker_model() {
         _log "WARNING: Could not send Matrix notification (missing room_id or token)"
     fi
 
-    _log "Model update complete for ${worker}: ${new_model} (ctx=${CTX}, max=${MAX})"
+    _log "Model update complete for ${worker}: ${new_model} (ctx=${CTX}, max=${MAX}, input=${INPUT})"
 }
 
 # ─── Argument parsing ─────────────────────────────────────────────────────────
