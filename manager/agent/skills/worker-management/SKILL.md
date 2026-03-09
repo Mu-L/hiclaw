@@ -29,19 +29,29 @@ cat > ~/hiclaw-fs/agents/<NAME>/SOUL.md << 'EOF'
 EOF
 
 # Step 2: Run create script
+# For standard openclaw worker (container-based):
 bash /opt/hiclaw/agent/skills/worker-management/scripts/create-worker.sh \
   --name <NAME> \
   --skills <skill1>,<skill2>
+
+# For copaw worker (Python, pip-installed on host):
+bash /opt/hiclaw/agent/skills/worker-management/scripts/create-worker.sh \
+  --name <NAME> \
+  --skills <skill1>,<skill2> \
+  --runtime copaw
 ```
+
+> **Runtime selection:** If the admin mentions "copaw" / "Python worker" / "pip worker", always pass `--runtime copaw`. See Step 0 below for the full keyword table.
 
 ### Skills by Worker Type (quick lookup)
 
-| Worker Type | Skills |
-|-------------|--------|
-| Frontend | `coding-cli,file-sync` |
-| Backend | `coding-cli,file-sync,git-delegation` |
-| DevOps | `github-operations,git-delegation` |
-| General | `file-sync` |
+| Worker Type | Runtime | Skills |
+|-------------|---------|--------|
+| Frontend | openclaw | `coding-cli,file-sync` |
+| Backend | openclaw | `coding-cli,file-sync,git-delegation` |
+| DevOps | openclaw | `github-operations,git-delegation` |
+| General | openclaw | `file-sync` |
+| CoPaw (Python) | copaw | `file-sync` |
 
 > `file-sync` is auto-included. Use `--find-skills` to enable on-demand skill discovery.
 
@@ -71,7 +81,21 @@ No need to set defaults - these are always available in the container environmen
 
 ## Create a Worker
 
-### Step 0: Receive configuration from AGENTS.md interaction
+### Step 0: Determine runtime
+
+Before anything else, determine which runtime to use based on the admin's request. This step is **mandatory** — never skip it.
+
+| Admin says (any of these keywords) | Runtime |
+|-------------------------------------|---------|
+| "copaw", "CoPaw", "Python worker", "pip worker", "host worker", "pip install" | `copaw` |
+| "openclaw", "container worker", "docker worker", or **none of the above** | `openclaw` (default) |
+
+**Rules:**
+- If the admin mentions "copaw" anywhere in the request (e.g., "帮我创建一个 copaw"、"create a copaw worker"), use `--runtime copaw`. Do NOT fall through to the default openclaw path.
+- If the admin does not mention any runtime keyword, default to `openclaw`.
+- When in doubt, ask the admin: "Should this be a copaw (Python, pip-installed) worker or a standard openclaw (container) worker?"
+
+### Step 0.5: Receive configuration from AGENTS.md interaction
 
 By the time you reach this skill, the admin has already confirmed:
 - Worker name, role description, and any custom model/MCP server preferences
