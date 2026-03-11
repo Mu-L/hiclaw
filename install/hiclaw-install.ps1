@@ -1288,21 +1288,8 @@ function Install-Manager {
                     }
                 }
 
-                # Stop and remove containers
-                if ($runningManager -or (docker ps -a --format "{{.Names}}" 2>$null | Select-String "^hiclaw-manager$")) {
-                    Write-Log (Get-Msg "install.existing.stopping_manager")
-                    docker stop hiclaw-manager *>$null
-                    docker rm hiclaw-manager *>$null
-                }
-
-                if ($existingWorkers) {
-                    Write-Log (Get-Msg "install.existing.stopping_workers")
-                    $existingWorkers | ForEach-Object {
-                        docker stop $_ *>$null
-                        docker rm $_ *>$null
-                        Write-Log (Get-Msg "install.existing.removed" -f $_)
-                    }
-                }
+                # Remember workers to stop later (after config + image pull)
+                $script:UPGRADE_EXISTING_WORKERS = $existingWorkers
                 break
             }
             "^(2|reinstall)$" {
@@ -1762,14 +1749,6 @@ function Install-Manager {
     # Image
     $dockerArgs += $script:MANAGER_IMAGE
 
-    # Remove existing container
-    $existingContainer = docker ps -a --format "{{.Names}}" 2>$null | Select-String "^hiclaw-manager$"
-    if ($existingContainer) {
-        Write-Log (Get-Msg "install.removing_existing")
-        docker stop hiclaw-manager *>$null
-        docker rm hiclaw-manager *>$null
-    }
-
     # Check if the Docker volume exists; create if not (reuse on reinstall)
     $volumeExists = docker volume ls -q 2>$null | Select-String "^$($config.DATA_DIR)$"
     if (-not $volumeExists) {
@@ -1793,31 +1772,39 @@ function Install-Manager {
         & docker pull $script:MANAGER_IMAGE
     }
 
-    if ($script:WORKER_IMAGE.StartsWith($LocalImagePrefix)) {
-        $workerImageExists = docker image inspect $script:WORKER_IMAGE 2>$null
+    # Pull only the worker image matching the selected runtime
+    $selectedWorkerImage = if ($config.DEFAULT_WORKER_RUNTIME -eq "copaw") { $script:COPAW_WORKER_IMAGE } else { $script:WORKER_IMAGE }
+    if ($selectedWorkerImage.StartsWith($LocalImagePrefix)) {
+        $workerImageExists = docker image inspect $selectedWorkerImage 2>$null
         if ($LASTEXITCODE -eq 0) {
-            Write-Log (Get-Msg "install.image.worker_exists" -f $script:WORKER_IMAGE)
+            Write-Log (Get-Msg "install.image.worker_exists" -f $selectedWorkerImage)
         } else {
-            Write-Log (Get-Msg "install.image.pulling_worker" -f $script:WORKER_IMAGE)
-            & docker pull $script:WORKER_IMAGE
+            Write-Log (Get-Msg "install.image.pulling_worker" -f $selectedWorkerImage)
+            & docker pull $selectedWorkerImage
         }
     } else {
-        Write-Log (Get-Msg "install.image.pulling_worker" -f $script:WORKER_IMAGE)
-        & docker pull $script:WORKER_IMAGE
+        Write-Log (Get-Msg "install.image.pulling_worker" -f $selectedWorkerImage)
+        & docker pull $selectedWorkerImage
     }
-    if ($script:COPAW_WORKER_IMAGE.StartsWith($LocalImagePrefix)) {
-        $copawImageExists = docker image inspect $script:COPAW_WORKER_IMAGE 2>$null
-        if ($LASTEXITCODE -eq 0) {
-            Write-Log "Copaw worker image exists: $($script:COPAW_WORKER_IMAGE)"
-        } else {
-            Write-Log "Pulling copaw worker image: $($script:COPAW_WORKER_IMAGE)"
-            & docker pull $script:COPAW_WORKER_IMAGE 2>$null
-            if ($LASTEXITCODE -ne 0) { Write-Log "Copaw worker image not available (optional)" }
+
+    # Stop and remove existing containers (deferred until after all
+    # configuration is collected and images are pulled successfully)
+    $existingContainer = docker ps -a --format "{{.Names}}" 2>$null | Select-String "^hiclaw-manager$"
+    if ($existingContainer) {
+        Write-Log (Get-Msg "install.removing_existing")
+        docker stop hiclaw-manager *>$null
+        docker rm hiclaw-manager *>$null
+    }
+
+    # Stop and remove worker containers saved during upgrade detection
+    # (Manager IP changes on restart, so workers must be recreated)
+    if ($script:UPGRADE_EXISTING_WORKERS) {
+        Write-Log (Get-Msg "install.existing.stopping_workers")
+        $script:UPGRADE_EXISTING_WORKERS | ForEach-Object {
+            docker stop $_ *>$null
+            docker rm $_ *>$null
+            Write-Log (Get-Msg "install.existing.removed" -f $_)
         }
-    } else {
-        Write-Log "Pulling copaw worker image: $($script:COPAW_WORKER_IMAGE)"
-        & docker pull $script:COPAW_WORKER_IMAGE 2>$null
-        if ($LASTEXITCODE -ne 0) { Write-Log "Copaw worker image not available (optional)" }
     }
 
     # Run container

@@ -1192,7 +1192,8 @@ install_manager() {
                 HICLAW_UPGRADE=1
                 log "$(msg install.existing.upgrading)"
 
-                # Warn about running containers
+                # Warn about running containers (actual stop is deferred until
+                # all configuration is collected and images are pulled)
                 if [ -n "${running_manager}" ] || [ -n "${running_workers}" ]; then
                     echo ""
                     echo -e "\033[33m$(msg install.existing.warn_manager_stop)\033[0m"
@@ -1209,23 +1210,8 @@ install_manager() {
                     fi
                 fi
 
-                # Stop and remove manager container
-                if [ -n "${running_manager}" ] || ${DOCKER_CMD} ps -a --format '{{.Names}}' | grep -q "^hiclaw-manager$"; then
-                    log "$(msg install.existing.stopping_manager)"
-                    ${DOCKER_CMD} stop hiclaw-manager 2>/dev/null || true
-                    ${DOCKER_CMD} rm hiclaw-manager 2>/dev/null || true
-                fi
-
-                # Stop and remove worker containers (Manager IP changes on restart,
-                # so workers must be recreated to get updated /etc/hosts entries)
-                if [ -n "${existing_workers}" ]; then
-                    log "$(msg install.existing.stopping_workers)"
-                    for w in ${existing_workers}; do
-                        ${DOCKER_CMD} stop "${w}" 2>/dev/null || true
-                        ${DOCKER_CMD} rm "${w}" 2>/dev/null || true
-                        log "$(msg install.existing.removed "${w}")"
-                    done
-                fi
+                # Remember workers to stop later (after config + image pull)
+                UPGRADE_EXISTING_WORKERS="${existing_workers}"
                 # Continue with installation using existing config
                 ;;
             2|reinstall)
@@ -1683,13 +1669,6 @@ EOF
         fi
     fi
 
-    # Remove existing container if present
-    if ${DOCKER_CMD} ps -a --format '{{.Names}}' | grep -q "^hiclaw-manager$"; then
-        log "$(msg install.removing_existing)"
-        ${DOCKER_CMD} stop hiclaw-manager 2>/dev/null || true
-        ${DOCKER_CMD} rm hiclaw-manager 2>/dev/null || true
-    fi
-
     # Create the data volume if it doesn't already exist (reuse on reinstall)
     if ! ${DOCKER_CMD} volume ls -q | grep -q "^${HICLAW_DATA_DIR}$"; then
         ${DOCKER_CMD} volume create "${HICLAW_DATA_DIR}" > /dev/null
@@ -1729,40 +1708,50 @@ EOF
         log "$(msg install.yolo)"
     fi
 
-    # Pull images (worker image must be ready before manager creates workers)
+    # Pull images (only pull the worker image matching the selected runtime)
     LOCAL_IMAGE_PREFIX="hiclaw/"
-    if echo "${MANAGER_IMAGE}" | grep -q "^${LOCAL_IMAGE_PREFIX}"; then
-        if ${DOCKER_CMD} image inspect "${MANAGER_IMAGE}" >/dev/null 2>&1; then
-            log "$(msg install.image.exists "${MANAGER_IMAGE}")"
-        else
-            log "$(msg install.image.pulling_manager "${MANAGER_IMAGE}")"
-            ${DOCKER_CMD} pull "${MANAGER_IMAGE}"
+
+    # Helper: pull or skip a single image
+    # Args: $1=image  $2=exists_msg_key  $3=pulling_msg_key
+    _pull_image() {
+        local _img="$1" _exists_key="$2" _pull_key="$3"
+        if echo "${_img}" | grep -q "^${LOCAL_IMAGE_PREFIX}"; then
+            if ${DOCKER_CMD} image inspect "${_img}" >/dev/null 2>&1; then
+                log "$(msg "${_exists_key}" "${_img}")"
+                return 0
+            fi
         fi
+        log "$(msg "${_pull_key}" "${_img}")"
+        ${DOCKER_CMD} pull "${_img}"
+    }
+
+    # Manager image is always required
+    _pull_image "${MANAGER_IMAGE}" "install.image.exists" "install.image.pulling_manager"
+
+    # Pull only the worker image for the selected runtime
+    if [ "${HICLAW_DEFAULT_WORKER_RUNTIME}" = "copaw" ]; then
+        _pull_image "${COPAW_WORKER_IMAGE}" "install.image.worker_exists" "install.image.pulling_worker"
     else
-        log "$(msg install.image.pulling_manager "${MANAGER_IMAGE}")"
-        ${DOCKER_CMD} pull "${MANAGER_IMAGE}"
+        _pull_image "${WORKER_IMAGE}" "install.image.worker_exists" "install.image.pulling_worker"
     fi
-    if echo "${WORKER_IMAGE}" | grep -q "^${LOCAL_IMAGE_PREFIX}"; then
-        if ${DOCKER_CMD} image inspect "${WORKER_IMAGE}" >/dev/null 2>&1; then
-            log "$(msg install.image.worker_exists "${WORKER_IMAGE}")"
-        else
-            log "$(msg install.image.pulling_worker "${WORKER_IMAGE}")"
-            ${DOCKER_CMD} pull "${WORKER_IMAGE}"
-        fi
-    else
-        log "$(msg install.image.pulling_worker "${WORKER_IMAGE}")"
-        ${DOCKER_CMD} pull "${WORKER_IMAGE}"
+
+    # Stop and remove existing containers (deferred from upgrade detection
+    # so that all configuration is collected and images are pulled first)
+    if ${DOCKER_CMD} ps -a --format '{{.Names}}' | grep -q "^hiclaw-manager$"; then
+        log "$(msg install.removing_existing)"
+        ${DOCKER_CMD} stop hiclaw-manager 2>/dev/null || true
+        ${DOCKER_CMD} rm hiclaw-manager 2>/dev/null || true
     fi
-    if echo "${COPAW_WORKER_IMAGE}" | grep -q "^${LOCAL_IMAGE_PREFIX}"; then
-        if ${DOCKER_CMD} image inspect "${COPAW_WORKER_IMAGE}" >/dev/null 2>&1; then
-            log "Copaw worker image exists: ${COPAW_WORKER_IMAGE}"
-        else
-            log "Pulling copaw worker image: ${COPAW_WORKER_IMAGE}"
-            ${DOCKER_CMD} pull "${COPAW_WORKER_IMAGE}" 2>/dev/null || log "Copaw worker image not available (optional)"
-        fi
-    else
-        log "Pulling copaw worker image: ${COPAW_WORKER_IMAGE}"
-        ${DOCKER_CMD} pull "${COPAW_WORKER_IMAGE}" 2>/dev/null || log "Copaw worker image not available (optional)"
+
+    # Stop and remove worker containers saved during upgrade detection
+    # (Manager IP changes on restart, so workers must be recreated)
+    if [ -n "${UPGRADE_EXISTING_WORKERS:-}" ]; then
+        log "$(msg install.existing.stopping_workers)"
+        for w in ${UPGRADE_EXISTING_WORKERS}; do
+            ${DOCKER_CMD} stop "${w}" 2>/dev/null || true
+            ${DOCKER_CMD} rm "${w}" 2>/dev/null || true
+            log "$(msg install.existing.removed "${w}")"
+        done
     fi
 
     # Run Manager container
