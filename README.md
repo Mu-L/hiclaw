@@ -1,5 +1,5 @@
 <h1 align="center">
-    <img src="https://img.alicdn.com/imgextra/i4/O1CN01zc7N6W1JRV5woDRtG_!!6000000001025-2-tps-1490-391.png" alt="HiClaw"  width="290" height="72.5">
+    <img src="https://img.alicdn.com/imgextra/i1/O1CN014DQemZ257thQOBg8L_!!6000000007480-55-tps-1489-391.svg" alt="HiClaw"  width="290" height="72.5">
   <br>
 </h1>
 
@@ -11,7 +11,7 @@
   <a href="https://qr.dingtalk.com/action/joingroup?code=v1,k1,q3lHf2AY4o0W2aBsoyJE0kgYnGcBFqpBuwDTjJ36iu8=&_dt_no_comment=1&origin=11"><img src="https://img.shields.io/badge/DingTalk-Join_Us-orange.svg" alt="DingTalk"></a>
 </p>
 
-**HiClaw is an open-source Collaborative Multi-Agent OS. It enables multiple agents to collaborate within Matrix rooms, ensuring that the entire process is visible to humans and allows for intervention at any time.
+**HiClaw is an open-source Collaborative Multi-Agent OS for transparent, human-in-the-loop task coordination via Matrix rooms, ensuring that the entire process is visible to humans and allows for intervention at any time.
 Designed with a Manager-Workers architecture, it allows humans to coordinate multiple Worker Agents through a Manager Agent to complete complex tasks. This accelerates the realization of OPOC (One-Person-One-Company) and the deployment of enterprise digital employees.**
 
 HiClaw is not positioned as a competitor to other "xxClaw" products; it is fundamentally an Agent Collaboration System.
@@ -297,7 +297,7 @@ make help  # All available targets
 - WeChat Group — scan to join:
 
 <p align="center">
-  <img src="https://img.alicdn.com/imgextra/i1/O1CN01ZwP1gd27xlmxoqSa8_!!6000000007864-2-tps-752-740.png" width="200" alt="WeChat Group" />
+  <img src="https://img.alicdn.com/imgextra/i4/O1CN011Gb82b1TNyCQlA5eh_!!6000000002371-2-tps-790-752.png" width="200" alt="WeChat Group" />
 </p>
 
 ## License
