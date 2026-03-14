@@ -207,7 +207,7 @@ Agent 行为由 Markdown 文件定义，而非代码：
 
 1. 在 `setup-higress.sh` 中添加服务器配置
 2. 创建 Worker 技能 SKILL.md，记录可用工具
-3. 在 `worker/agent/skills/` 中更新新技能
+3. 在 `manager/agent/worker-agent/skills/` 中更新新技能
 4. 在 `tests/` 中添加测试覆盖
 
 ## CI/CD

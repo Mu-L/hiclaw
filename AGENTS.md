@@ -59,7 +59,7 @@ hiclaw/
 - [manager/agent/HEARTBEAT.md](manager/agent/HEARTBEAT.md) -- periodic check routine
 - [manager/agent/skills/](manager/agent/skills/) -- Manager's skills (9 skill directories, each with SKILL.md and optional scripts/references/)
 - [manager/agent/worker-skills/](manager/agent/worker-skills/) -- Skill definitions pushed to Workers on creation
-- [worker/agent/skills/github-operations/SKILL.md](worker/agent/skills/github-operations/SKILL.md) -- Worker GitHub skill
+- [manager/agent/worker-skills/github-operations/SKILL.md](manager/agent/worker-skills/github-operations/SKILL.md) -- Worker GitHub skill (on-demand, pushed by Manager)
 
 ### To modify CI/CD
 - [.github/workflows/](/.github/workflows/) -- GitHub Actions workflows
@@ -102,7 +102,7 @@ On release, the workflow automatically renames `current.md` → `vX.Y.Z.md` and 
 
 ## Agent-Facing Content: Writing Convention
 
-Files under `manager/agent/` and `worker/agent/` (including `copaw/`) are **read by the Agent at runtime**, not by human developers. All content in these paths must be written from the Agent's own perspective using second-person voice ("you"):
+Files under `manager/agent/` are **read by the Agent at runtime**, not by human developers. All content in these paths must be written from the Agent's own perspective using second-person voice ("you"):
 
 - **AGENTS.md, SOUL.md, HEARTBEAT.md** — address the Agent directly: "You are the Manager...", "Your responsibilities include..."
 - **SKILL.md** — instruct the Agent as the reader: "Use this script to...", "You can call...", "Run `mcporter --config ~/mcporter-servers.json list` to see..."
@@ -113,9 +113,9 @@ Files under `manager/agent/` and `worker/agent/` (including `copaw/`) are **read
 
 This convention applies to all files that end up in the Agent's workspace or are loaded as skills/prompts at runtime:
 - `manager/agent/**` (Manager Agent config, skills, tools)
-- `worker/agent/**` (Worker Agent config, skills)
-- `manager/agent/copaw-worker-agent/**` (CoPaw Worker Agent config)
-- `manager/agent/worker-skills/**` (skill definitions pushed to Workers on creation)
+- `manager/agent/worker-agent/**` (OpenClaw Worker Agent config, builtin skills)
+- `manager/agent/copaw-worker-agent/**` (CoPaw Worker Agent config, builtin skills)
+- `manager/agent/worker-skills/**` (on-demand skill definitions pushed to Workers)
 
 ## Environment Variables
 

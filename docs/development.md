@@ -207,7 +207,7 @@ Route, consumer, and MCP server initialization is in `manager/scripts/init/setup
 
 1. Add the server configuration to `setup-higress.sh`
 2. Create a Worker skill SKILL.md documenting available tools
-3. Update `worker/agent/skills/` with the new skill
+3. Update `manager/agent/worker-agent/skills/` with the new skill
 4. Add test coverage in `tests/`
 
 ## CI/CD
