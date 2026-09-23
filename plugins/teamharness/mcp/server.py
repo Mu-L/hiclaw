@@ -3963,8 +3963,25 @@ def _projectflow(arguments: dict[str, Any]) -> dict[str, Any]:
             elif action == "resume_project":
                 project["status"] = "active"
             else:
-                project["status"] = "completed"
                 loop = project.get("loop") if isinstance(project.get("loop"), dict) else {}
+                if str(project.get("plan_type") or "dag") == "loop":
+                    tasks = loop.get("tasks", []) if isinstance(loop.get("tasks"), list) else []
+                else:
+                    tasks = project.get("tasks", []) if isinstance(project.get("tasks"), list) else []
+                non_terminal = []
+                for task in tasks:
+                    if not isinstance(task, dict):
+                        non_terminal.append("<unknown> (invalid)")
+                        continue
+                    status = str(task.get("status") or "")
+                    if status not in TERMINAL_TASK_STATUSES:
+                        non_terminal.append(f"{task.get('task_id') or '<unknown>'} ({status or 'unknown'})")
+                if non_terminal:
+                    raise ValueError(
+                        "complete_project requires every project task to be terminal; "
+                        f"not terminal: {', '.join(non_terminal)}"
+                    )
+                project["status"] = "completed"
                 if loop:
                     loop["status"] = "completed"
                     project["loop"] = loop
